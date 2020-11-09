@@ -1,0 +1,1273 @@
+---
+title: "Surgical Report"
+output: 
+  html_document
+    
+---
+# {.tabset}
+
+## Case report
+
+
+### 1. Summaries
+  * ID: hu-sev-02  
+  * Surgical Date: 16 March 2018  
+  * Center: YUHS Cancer Center  
+  * Early Gastric Cancer
+
+```{r message=FALSE, echo=FALSE}
+library(DT)
+library(dplyr)
+
+tmp <- get(load(file="change.phbl.dtt1208.Rdata"))
+s.t <- tmp[19,4] ##surgical time 
+
+b.t <- get(load(file = "total_bleeding_time.Rdata"))
+b.c <- sum(tmp[,8]) #bleeding count
+
+summ <- data.frame(s.t,b.t,b.c)
+colnames(summ)<-c("total surgical time","total bleeding time","total bleeding counts")
+
+datatable(summ,rownames = FALSE,options = list(
+  pageLength = 1
+))%>%
+  formatStyle('total surgical time', `text-align` = 'center')%>%
+  formatStyle('total bleeding time', `text-align` = 'center')
+
+```
+
+### 2. Surgical Phases Label
+
+```{r message=FALSE, echo=FALSE}
+library(DT)
+library(dplyr)
+phase_label = c("Trocar insertion",
+                "Docking",
+                "Division of lesser omentum up to the R side of the esophagus",
+                "Liver Retraction",
+                "Partial (or Total) omentectomy",
+                "Ligation of Left gastroepiploic vessels",
+                "Clearance of soft tissues along the greater curvature",
+                "Ligation of Right gastroepiploic vein",
+                "Ligation of right gastroepiploic artery",
+                "Creation of window for duodenal transection",
+                "Duodenal transection",
+                "Ligation of right gastric artery",
+                "Dissection of LN station 12a",
+                "Dissection of LN station 8 and 9",
+                "Dissection of LN station 7 and ligation of Left gastric artery",
+                "Dissection of LN station 11p",
+                "Clearance of soft tissue along the lesser curvature",
+                "Gastric transection",
+                "Harvesting resected specimen into Endo bag",
+                "Anastomosis",
+                "Retrieval of specimen"
+)
+
+PHASE_LABEL <- data.frame(Index=1:21,phase_label)
+colnames(PHASE_LABEL) <- c("Index","Phase")
+
+datatable(PHASE_LABEL, rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+formatStyle('Index', `text-align` = 'center')%>%
+formatStyle('Phase', `text-align` = 'center')
+
+```
+
+
+### 3. Workflow Analysis (Phase Analysis)
+
+#### 3.1 Surgical Time x Phase
+```{r message=FALSE, echo=FALSE,Fig12,fig.height=7, fig.width=12}
+library(ggplot2) 
+library(plotly)
+demo.integ<- get(load(file = "demo.integ.Rdata"))
+
+dhms <- function(t){
+  paste(paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+              ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+              ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+              ,sep = ":"
+  )
+  )
+}
+
+time_label <- seq(from=0,to =60*60*3.5*30,by =54000 )
+
+plot_phase <- ggplot(demo.integ, aes(x=seq, y=ARMES)) + geom_point(aes(colour=factor(ARMES)),show.legend = FALSE)
+
+plot_phase<- plot_phase+ggtitle("Surgical work flow")+scale_y_continuous(breaks = 1:21)+
+  theme(plot.title = element_text(family = "serif", face = "bold", hjust = 0.5, size = 15, color = "darkblue")) 
+plot_phase  <- plot_phase +labs(y = "Phase",x="time")+scale_x_continuous(breaks = time_label ,labels = dhms(time_label/30))
+
+plot_phase
+
+
+
+
+```
+
+#### 3.2 Change of Phase
+
+```{r message=FALSE, echo=FALSE}
+library(DT)
+demo.c.dttable<- get(load(file="change.phbl.dtt1208.Rdata"))
+datatable(demo.c.dttable, options = list(
+  pageLength = 19))
+```
+
+
+### 4. Bleeding Status by Phase
+```{r message=FALSE, echo=FALSE}
+library(DT)
+bl.freq.dtt <- get(load(file = "bl.freq.dtt.Rdata"))
+datatable(bl.freq.dtt,options = list(
+  pageLength = 21))
+```
+
+```{r message=FALSE, echo=FALSE,Fig11,fig.height=7, fig.width=12}
+library(ggplot2) 
+demo.integ<- get(load(file = "demo.integ.Rdata"))
+zero.index<- which(demo.integ$BleedingA==0)
+demo.integ <- demo.integ[-zero.index,]
+
+one.index<- which(demo.integ$BleedingA==0)
+two.index<- which(demo.integ$BleedingA==0)
+
+demo.integ$BleedingA[one.index] = 2
+demo.integ$BleedingA[two.index] = 1
+#noise <- runif(nrow(demo.integ),-0.01,0.01)
+#demo.integ$BleedingA <- demo.integ$BleedingA+noise
+
+dhms <- function(t){
+  paste(paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+              ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+              ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+              ,sep = ":"
+  )
+  )
+}
+
+time_label <- seq(from=0,to =60*60*3.5*30,by =54000 )
+plot <- ggplot(demo.integ, aes(x=seq, y=BleedingA)) + geom_jitter(aes(colour=factor(BleedingA)),show.legend = FALSE,width = 0.5, height = 0.02)
+  
+plot<- plot+ggtitle("Bleeding flow")+
+  theme(plot.title = element_text(family = "serif", face = "bold", hjust = 0.5, size = 15, color = "darkblue")) 
+plot  <- plot +labs(y = "Bleeding",x ="times")+scale_y_continuous(breaks = 1:2,labels = c("bleeding without intervention","bleeding with intervention"))
+
+plot<- plot + scale_x_continuous(breaks = time_label ,labels = dhms(time_label/30))
+
+plot
+
+```
+
+
+### 5. Comparision with Surgical History 
+
+```{r message=FALSE, echo=FALSE,Fig3,fig.height=7, fig.width=12}
+library(plotly)
+dhms <- function(t){
+  paste(paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+              ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+              ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+              ,sep = ":"
+  )
+  )
+}
+
+y.ax <- list(title = "bleeding time",range =c(0,7200))
+
+x.ax <- list(title = "phase",  autotick = FALSE,
+             type = 'category')
+
+
+demo.ble<- get(load(file = "freq.ble.frame_1206.Rdata"))
+his.table.inte<- get(load(file="his.table.inte.Rdata"))
+
+
+MAX_one <-max(c(his.table.inte$one/30,demo.ble$one_frame/30))
+MAX_one_ceil <-ceiling(MAX_one/30)*30
+one_tickvals <- seq(0,MAX_one_ceil,30)
+one_ticktext <- as.list(dhms(one_tickvals))
+one_tickvals <- as.list(one_tickvals)
+
+box_1 <- plot_ly(his.table.inte, x = ~phase, y = ~one/30, type = "box",color = I("black"),name = 'Surgical history') %>%
+  add_trace(x = demo.ble$ARMES, y = demo.ble$one_frame/30,color=I("red"),type="scatter",mode = 'lines+markers',name = "hu-sev-02",
+            marker=list(size=12))%>%
+  #add_trace(x = demo.ble$ARMES, y = demo.ble$one_frame,color=I("red"),type="scatter",mode="lines",name = "8215811")%>%
+  layout(title = "Bleeding with intervention times"
+         ,yaxis=y.ax,xaxis =x.ax )%>%
+ layout(yaxis=list(range=c(0,MAX_one_ceil)))%>%
+  layout(yaxis=list(tickvals = one_tickvals
+                    ,ticktext = one_ticktext ))
+box_1
+
+MAX_two <-max(c(his.table.inte$two/30,demo.ble$two_frame/30))
+MAX_two_ceil <-ceiling(MAX_two/30)*30
+two_tickvals <- seq(0,MAX_two_ceil,30)
+two_ticktext <- as.list(dhms(two_tickvals))
+two_tickvals <- as.list(two_tickvals)
+
+
+
+
+box_2 <-plot_ly(his.table.inte, x = ~phase, y = ~two/30, type = "box",color = I("black"),name = 'Surgical history') %>%
+  add_trace(x = demo.ble$ARMES, y = demo.ble$two_frame/30,color=I("green"),type="scatter",mode = 'lines+markers',name = "hu-sev-02",marker=list(size=12)) %>%
+  #add_trace(x = demo.ble$ARMES, y = demo.ble$two_frame,color=I("green"),type="lines",name = "8215811") %>%
+  layout(title = "Bleeding without intervention times"
+         ,yaxis=y.ax,xaxis =x.ax)%>%
+  layout(yaxis=list(range=c(0,MAX_two_ceil)))%>%
+  layout(yaxis=list(tickvals = two_tickvals
+                    ,ticktext = two_ticktext ))
+
+box_2
+#--------------------
+MAX_tot <-max(c(his.table.inte$total/30,demo.ble$one_two_frame/30))
+MAX_tot_ceil <-ceiling(MAX_tot/30)*30
+tot_tickvals <- seq(0,MAX_tot_ceil,30)
+tot_ticktext <- as.list(dhms(tot_tickvals))
+tot_tickvals <- as.list(tot_tickvals)
+
+
+box_tot <- plot_ly(his.table.inte, x = ~phase, y = ~total/30, type = "box",name = 'Surgical history',color = I("black")) %>%
+  add_trace(x = demo.ble$ARMES, y = demo.ble$one_two_frame/30,color=I("blue"),type="scatter",mode = 'lines+markers',name = "hu-sev-02",
+            marker=list(size=12)) %>%
+  #add_trace(x = demo.ble$ARMES, y = demo.ble$one_two_frame,color=I("blue"),type="lines",name = "8215811") %>%
+  layout(title = "Total bleeding times"
+         ,yaxis=y.ax,xaxis =x.ax)%>%
+  layout(yaxis=list(range=c(0,MAX_tot_ceil)))%>%
+  layout(yaxis=list(tickvals = tot_tickvals
+                    ,ticktext = tot_ticktext))
+box_tot
+
+
+```
+
+### 6. Surgical Networks
+
+#### 6.1 Bleeding Networks 
+
+
+```{r message=FALSE, echo=FALSE,Fig22,fig.height=9, fig.width=12}
+library(networkD3)
+bl.A.frame <- get(load(file = "bl.A.frame.Rdata"))
+bl.A.frame<- data.frame(phase = 1:21,bl.A.frame)[-c(13,16),]
+rownames(bl.A.frame) <- NULL
+source = rep(0:18,3)   #from
+target = rep(c(19,20,21),19)
+value = c(bl.A.frame$zero.A,bl.A.frame$one.A,bl.A.frame$two.A)
+net <- data.frame(source,target,value)
+
+PHASE_LABEL = c("1.Trocar insertion",
+                "2.Docking",
+                "3.Division of lesser omentum up to the R side of the esophagus",
+                "4.Liver Retraction",
+                "5.Partial (or Total) omentectomy",
+                "6.Ligation of Left gastroepiploic vessels",
+                "7.Clearance of soft tissues along the greater curvature",
+                "8.Ligation of Right gastroepiploic vein",
+                "9.Ligation of right gastroepiploic artery",
+                "10.Creation of window for duodenal transection",
+                "11.Duodenal transection",
+                "12.Ligation of right gastric artery",
+                "13.Dissection of LN station 12a",
+                "14.Dissection of LN station 8 and 9",
+                "15.Dissection of LN station 7 and ligation of Left gastric artery",
+                "16.Dissection of LN station 11p",
+                "17.Clearance of soft tissue along the lesser curvature",
+                "18.Gastric transection",
+                "19.Harvesting resected specimen into Endo bag",
+                "20.Anastomosis",
+                "21.Retrieval of specimen"
+)
+
+BLEEDING_LABEL = c("No bleeding","Bleeding with intervention","Bleeding without intervention")
+
+#nodes <- data.frame(name = c(PHASE_LABEL[1:12],PHASE_LABEL[14:15],PHASE_LABEL[17:21],BLEEDING_LABEL))
+
+links <- data.frame(source = net$source, target = net$target, value = net$value)
+
+nodes <- data.frame(
+  name=c(name = c(PHASE_LABEL[1:12],PHASE_LABEL[14:15],PHASE_LABEL[17:21],BLEEDING_LABEL)) %>% 
+    unique()
+)
+nodes$group <-as.factor(c("a","a","a","a","b","b","b","c","c","d","d","e","e","e","f","g","g","g","h","i","j","k"))
+
+links$IDsource <- match(links$source, nodes$name)-1 
+links$IDtarget <- match(links$target, nodes$name)-1
+
+my_color <- 'd3.scaleOrdinal() .domain(["a", "b","c","d","e","f","g","h","i","j","k"]) .range(["orange","yellow","green","blue","navy","purple","black","orchid","white","red","grey"])'
+
+
+#sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', 
+              #Target = 'target', Value = 'value', NodeID = 'name',
+              #ßiterations = 0 ,colourScale = my_color) 
+
+sankeyNetwork(Links = links, Nodes = nodes, Source = "source", Target = "target", 
+              Value = "value", NodeID = "name", 
+              colourScale=my_color, NodeGroup="group", fontSize = 14,iterations = 0)
+
+
+```
+
+
+
+#### 6.2 Phase to Phase
+```{r message=FALSE, echo=FALSE,Fig4,fig.height=9, fig.width=12}
+library(networkD3)
+library(doBy)
+#demo <-get(load(paste(getwd(),"/surgical_report/8215811/demo_phase_summ.Rdata",sep = "")))
+demo <- get(load("demo_phase_summ.Rdata"))
+source = demo$before_phase[2:length(demo$before_phase)] -1 #from
+target = (demo$after_phase[2:length(demo$after_phase)]-1+21)
+value = demo$duration[1:length(demo$duration)-1]
+temp = data.frame(source,target,value)
+net = orderBy(~source,temp)
+rownames(net) <-NULL
+
+phase_label = c("1.Trocar insertion",
+                "2.Docking",
+                "3.Division of lesser omentum up to the R side of the esophagus",
+                "4.Liver Retraction",
+                "5.Partial (or Total) omentectomy",
+                "6.Ligation of Left gastroepiploic vessels",
+                "7.Clearance of soft tissues along the greater curvature",
+                "8.Ligation of Right gastroepiploic vein",
+                "9.Ligation of right gastroepiploic artery",
+                "10.Creation of window for duodenal transection",
+                "11.Duodenal transection",
+                "12.Ligation of right gastric artery",
+                "13.Dissection of LN station 12a",
+                "14.Dissection of LN station 8 and 9",
+                "15.Dissection of LN station 7 and ligation of Left gastric artery",
+                "16.Dissection of LN station 11p",
+                "17.Clearance of soft tissue along the lesser curvature",
+                "18.Gastric transection",
+                "19.Harvesting resected specimen into Endo bag",
+                "20.Anastomosis",
+                "21.Retrieval of specimen"
+)
+
+nodes <- data.frame(name = c(phase_label, phase_label))
+links <- data.frame(source = net$source, target = net$target, value = net$value)
+
+nodes$group <-as.factor(c("a","a","a","a","b","b","b","c"
+                          ,"c","d","d","e","e","e","e","e","f","g","g","g","h"))
+
+
+#sankeyNetwork(Links = links, Nodes = nodes, Source = 'source', 
+              #Target = 'target', Value = 'value', NodeID = 'name',
+              #iterations = 0 ,colourScale = my_color, fontSize = 14) 
+#====================
+
+my_color <- 'd3.scaleOrdinal() .domain(["a", "b","c","d","e","f","g","h"]) .range(["orange","yellow","green","blue","navy","purple","black","orchid"])'
+sankeyNetwork(Links = links, Nodes = nodes, Source = "source", Target = "target", 
+              Value = "value", NodeID = "name", 
+              colourScale=my_color, NodeGroup="group", fontSize = 12,iterations = 0)
+```
+
+#### 6.3 Phase Networks
+
+```{r message=FALSE, echo=FALSE,Fig5,fig.height=9, fig.width=12}
+library(plotly)
+library(dplyr)
+library(doBy)
+demo <- get(load("demo_phase_summ.Rdata"))
+source = demo$before_phase[2:length(demo$before_phase)] -1 #from
+target = (demo$after_phase[2:length(demo$after_phase)]-1)
+value = demo$duration[1:length(demo$duration)-1]
+temp = data.frame(source,target,value)
+net = orderBy(~source,temp)
+rownames(net) <-NULL
+
+
+
+phase_label = c("1.Trocar insertion",
+                "2.Docking",
+                "3.Division of lesser omentum up to the R side of the esophagus",
+                "4.Liver Retraction",
+                "5.Partial (or Total) omentectomy",
+                "6.Ligation of Left gastroepiploic vessels",
+                "7.Clearance of soft tissues along the greater curvature",
+                "8.Ligation of Right gastroepiploic vein",
+                "9.Ligation of right gastroepiploic artery",
+                "10.Creation of window for duodenal transection",
+                "11.Duodenal transection",
+                "12.Ligation of right gastric artery",
+                "13.Dissection of LN station 12a",
+                "14.Dissection of LN station 8 and 9",
+                "15.Dissection of LN station 7 and ligation of Left gastric artery",
+                "16.Dissection of LN station 11p",
+                "17.Clearance of soft tissue along the lesser curvature",
+                "18.Gastric transection",
+                "19.Harvesting resected specimen into Endo bag",
+                "20.Anastomosis",
+                "21.Retrieval of specimen"
+)
+
+plot_ly(
+  type = "sankey",
+  arrangement="freeform",
+  valueformat = ".0f",
+  orientation = "h",
+  
+  node = list(
+    label = c(phase_label,phase_label),
+    color = rep(c(rep("blue",4),rep("orchid",3),rep("yellow",2),rep("green",2),rep("red",5),rep("orange",1),rep("purple",3),"navy"),2),
+    pad = 15, # distance between 
+    thickness = 20,
+    line = list(
+      color = "black",
+      width = 0.5
+    )
+  ),
+  
+  link = list(
+    source = net$source, #from
+    target = net$target, #to 
+    value = net$value  #thickness
+  )
+) %>% 
+  layout(
+    font = list(
+      size = 12
+    )
+  )
+```
+
+
+## History Report
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(DT)
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+
+# User-defined function
+dhms <- function(t){
+  paste(paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+              ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+              ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+              ,sep = ":"
+  )
+  )
+}
+
+
+# Meta Variable
+
+ID <- c("R00001","R00002","R00003","R00004","R00005","R00007","R00008","R00011"
+        ,"R00012","R00013","R00014","R00015","R00016","R00017","R00018","R00019","R00020","R00021")
+
+num_patient <- length(ID)
+
+patient.label <- as.list(ID)
+
+# Load RData
+bl.table.list <- get(load(file = "bl.table.list.byphase.Rdata"))
+counts <- get(load("his.ble.count.Rdata"))
+```
+
+### 1. Overall Analysis
+```{r message=FALSE, echo=FALSE}
+tmp<-list()
+tab<-c()
+#counts <- get(load("his.ble.count.Rdata"))
+
+for(i in 1:num_patient){
+  tmp[[i]] <-data.frame(
+    bl.table.list[[i]]$tot_frame,
+    bl.table.list[[i]]$bl_frame,
+    counts[[i]]$total)
+  tab<-rbind(tab,tmp[[i]])
+}
+
+stat.md <- apply(tab,2,median)
+stat.sd <- apply(tab,2,sd)
+
+stat.md <- t(stat.md)
+stat.md[,3] <-round(stat.md[,3],digits = 2)
+stat.md[,1:2] <-dhms(stat.md[,1:2]/30)
+
+
+stat.sd <- t(stat.sd)
+stat.sd[,3] <-round(stat.sd[,3],digits = 2)
+stat.sd[,1:2] <-dhms(stat.sd[,1:2]/30)
+
+stat.md[,3] <-paste0(stat.md[,3],"(",stat.sd[,3],")")
+stat.md[,1] <-paste0(stat.md[,1],"(",stat.sd[,1],")")
+stat.md[,2] <-paste0(stat.md[,2],"(",stat.sd[,2],")")
+
+
+stat <- cbind(cases = length(counts), stat.md)
+colnames(stat) <- c("Cases (n)", "Recording Time (Median, (SD))","Event Time (Median, (SD))","Event Count (Median, (SD))")
+rownames(stat) <- NULL 
+datatable(stat,rownames = FALSE,options = list(
+  pageLength = 1)) %>%
+  formatStyle('Cases (n)', `text-align` = 'center') %>%
+  formatStyle('Recording Time (Median, (SD))', `text-align` = 'center') %>%
+  formatStyle('Event Time (Median, (SD))', `text-align` = 'center') %>%
+  formatStyle('Event Count (Median, (SD))', `text-align` = 'center')
+```
+
+
+
+### 2. History Analysis
+
+```{r message=FALSE, echo=FALSE}
+tmp<-list()
+tab<-c()
+
+
+for(i in 1:num_patient){
+  tmp[[i]] <-data.frame(ID[i],bl.table.list[[i]]$tot_time,bl.table.list[[i]]$bl_time,counts[[i]]$total,dhms((bl.table.list[[i]]$bl_frame/30)/counts[[i]]$total))
+  tab<-rbind(tab,tmp[[i]])
+}
+colnames(tab) <- c("ID","Recording Time","Event Time","Event Count (n)","Event Time per Count")
+
+
+datatable(tab, options = list(
+  pageLength = 18
+  )) %>%
+  formatStyle('ID', `text-align` = 'center')%>%
+  formatStyle('Recording Time', `text-align` = 'center')%>%
+  formatStyle('Event Time', `text-align` = 'center')%>%
+  formatStyle('Event Time per Count', `text-align` = 'center')
+```
+
+
+
+
+### 3. Case Summary 
+
+#### 3.1 Event Time
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+summ.table <-c()
+for(i in 1:num_patient){
+  tmp <- data.frame(id = i,`Recording Time` = round(bl.table.list[[i]]$tot_frame/30) ,`Event Time`= round(bl.table.list[[i]]$bl_frame/30) )
+  summ.table <- rbind(summ.table,tmp)
+}
+
+rownames(summ.table) <- NULL
+#-------------------------------------------------------------
+y.ax <- list(title = "Time")
+x.ax <- list(title = "ID",  autotick = FALSE,
+             tickvals =list(1:length(patient.label)),ticktext = patient.label )
+max_time = 1800*ceiling(max(summ.table$Recording.Time)/1800)
+time_seq = (seq(0,max_time,1800))
+time_label = (dhms(seq(0,max_time,1800)))
+
+p_1 <- ggplot(summ.table,aes(x=factor(id), y = Recording.Time))+
+geom_bar(stat="identity",fill="blue",alpha= 0.8)+
+scale_y_continuous(breaks =time_seq,labels = time_label )+
+xlab("patient id")+
+ylab("recording time")+
+geom_abline(slope=0,intercept = mean(summ.table$Recording.Time))+
+ggtitle("Total recording time") + 
+theme(plot.title = element_text(hjust = 0.5))
+
+
+ggplotly(p_1)
+
+
+
+#-------------------------------------------------------------
+max_time = 30*ceiling(max(summ.table$Event.Time)/30)
+time_seq = (seq(0,max_time,30))
+time_label =(dhms(seq(0,max_time,30)))
+
+p_2 <- ggplot(summ.table,aes(x=factor(id), y = Event.Time))+
+geom_bar(stat="identity",fill="red",alpha= 0.8)+
+scale_y_continuous(breaks =time_seq,labels = time_label )+
+xlab("patient id")+
+ylab("event time")+
+geom_abline(slope=0,intercept = mean(summ.table$Event.Time))+
+ggtitle("Total event time") + 
+theme(plot.title = element_text(hjust = 0.5))
+ 
+ggplotly(p_2)
+
+
+
+```
+
+#### 3.2 Event Counts
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+
+count.tab <- c()
+
+for(i in 1:num_patient){
+  count.tab <- rbind(count.tab,c(i,counts[[i]]$total))
+}
+
+count.tab <- as.data.frame(count.tab)
+colnames(count.tab) <- c("id","Event.Count")
+
+ p_3 <- ggplot(count.tab,aes(factor(id),Event.Count))+
+geom_bar(stat = "identity",fill = "purple", alpha =0.8)+
+xlab("patient id")+
+ylab("event count")+
+geom_abline(slope=0,intercept = mean(count.tab$Event.Count))
+ 
+ ggplotly(p_3)
+
+
+
+
+
+#plot_ly(count.tab, x= ~id,y = ~`Event.Count`,color=I("purple"),name = "Event Time",type = 'bar',alpha = 0.7)%>%
+  #layout(xaxis = x.ax, barmode = 'group') %>% 
+  #layout(title = "Case Summary : Event count")
+
+
+
+
+```
+
+### 4. Workflow Analysis (Phase Analysis)
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+integ.hist.phase <- get(load("integ.hist.phase.time.Rdata"))
+colnames(integ.hist.phase) <- c("phase","frame")
+integ.hist.phase <- as.data.frame(integ.hist.phase)
+MIN = min(integ.hist.phase$frame/30)
+MAX = max(integ.hist.phase$frame/30)
+
+
+frame.labels = seq(0,600*(ceiling(MAX/600)),600)
+time.labels = dhms(frame.labels)
+
+
+############ggplot
+
+p <- ggplot(integ.hist.phase, aes(factor(phase,levels = 21:1), frame/30)) + 
+  geom_boxplot(fill = "lightblue",color="navy") + 
+  coord_flip() +
+  xlab("Surgical Phase")+
+  ylab("Time (hh:mm:ss)")+
+  scale_y_continuous(breaks = frame.labels,labels = time.labels)
+
+ggplotly(p)
+
+##############
+
+phase.table<- get(load("phase.time.stat.Rdata"))  
+ #c("phase","aver_time","aver_portion","Min","1Q","2Q","3Q","Max")
+ 
+ 
+ 
+ phase.table$aver_time <- dhms(phase.table$aver_time/30)
+ phase.table$Min <- dhms(phase.table$Min/30)
+ phase.table$`1Q` <- dhms(phase.table$`1Q`/30)
+ phase.table$`2Q` <- dhms(phase.table$`2Q`/30)
+ phase.table$`3Q` <- dhms(phase.table$`3Q`/30)
+ phase.table$Max <- dhms(phase.table$Max/30)
+ phase.table$sd <- dhms(phase.table$sd/30)
+ 
+ for(i in 1:length(phase.table$aver_time)){
+   phase.table$aver_time[i] = paste0(phase.table$aver_time[i],"(",phase.table$sd[i],")")
+ }
+ 
+ 
+ colnames(phase.table) <- c("Phase","Duration (Median, (SD))","Proportion (%)","Min"
+                            ,"1Q (25th)","2Q (50th)","3Q (75th)","Max","SD")
+ phase.table <- phase.table[,c(-3,-9)]
+
+#print(phase.table,type = "png",include.rownames=F)
+
+datatable(phase.table, rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+  formatStyle('Phase', `text-align` = 'center')%>%
+  formatStyle('Duration (Median, (SD))', `text-align` = 'center')%>%
+  formatStyle('Min', `text-align` = 'center')%>%
+  formatStyle('1Q (25th)', `text-align` = 'center')%>%
+  formatStyle('2Q (50th)', `text-align` = 'center')%>%
+  formatStyle('3Q (75th)', `text-align` = 'center')%>%
+  formatStyle('Max', `text-align` = 'center')
+
+```
+
+
+### 5. Event Time Analysis
+
+```{r message=FALSE, echo=FALSE}
+bleeding_history_stat <- get(load("bleeding_history_stat.Rdata"))
+bleeding_history_stat$frame_mean <- dhms(bleeding_history_stat$frame_mean/30)
+bleeding_history_stat$frame_sd <- dhms(bleeding_history_stat$frame_sd/30)
+for(i in 1:length(bleeding_history_stat$frame_mean)){
+  bleeding_history_stat$frame_mean[i] <- paste0(bleeding_history_stat$frame_mean[i],"(",bleeding_history_stat$frame_sd[i],")")
+}
+bleeding_history_stat$X0.<-dhms(bleeding_history_stat$X0./30)
+bleeding_history_stat$X25.<-dhms(bleeding_history_stat$X25./30)
+bleeding_history_stat$X50. <- dhms(bleeding_history_stat$X50./30)
+bleeding_history_stat$X75. <- dhms(bleeding_history_stat$X75./30)
+bleeding_history_stat$X100. <- dhms(bleeding_history_stat$X100./30)
+bleeding_history_stat <- bleeding_history_stat[,c(-2,-8)]
+
+colnames(bleeding_history_stat) <-  c("Duration (Median, (SD))","Min",
+                            "1Q (25th)","2Q (50th)","3Q (75th)","Max")
+ 
+rownames(bleeding_history_stat) <- c("No bleeding","Bleeding with Intervention",
+                                     "Bleeding without Intervention")
+
+bleeding_history_stat_order <- rbind(bleeding_history_stat[3,],
+                                     bleeding_history_stat[2,])
+
+datatable(bleeding_history_stat_order, options = list(
+  pageLength = 3
+))%>%
+  formatStyle('Duration (Median, (SD))', `text-align` = 'center')%>%
+  formatStyle('Min', `text-align` = 'center')%>%
+  formatStyle('1Q (25th)', `text-align` = 'center')%>%
+  formatStyle('2Q (50th)', `text-align` = 'center')%>%
+  formatStyle('3Q (75th)', `text-align` = 'center')%>%
+  formatStyle('Max', `text-align` = 'center')
+```
+
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+bleeding_history_frame <- get(load("bleeding_history_frame_dataframe.Rdata"))
+bleeding_history_frame$frame <- bleeding_history_frame$frame/30
+
+MIN = min(bleeding_history_frame$frame)
+MAX = max(bleeding_history_frame$frame)
+
+
+frame.labels = seq(0,60*(ceiling(MAX/60)),60)
+time.labels = dhms(frame.labels)
+bleeding.labels = c("Bleeding \n with \n Intervention","Bleeding \n without \n Intervention")
+
+p <- ggplot(bleeding_history_frame, aes(factor(bl.type),frame )) + 
+  geom_boxplot(fill = c("darkred","darkgrey")) +
+  coord_flip() +
+  xlab("Event Type") +
+  ylab("Time (hh:mm:ss)") +
+  scale_y_continuous(breaks = frame.labels,labels = time.labels) +
+  scale_x_discrete(labels = bleeding.labels) + 
+  ggtitle("Event Type Analysis") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggplotly(p)
+
+#### Event time analysis
+bl.time.eachcount <- get(load("bl.time.eachcount.Rdata"))
+bl.time.eachcount <- bl.time.eachcount[bl.time.eachcount$bleeding_type != 0 ,]
+
+MAX = max(bl.time.eachcount$duration/30)
+
+frame.labels = seq(0,ceiling(MAX/30)*30,30)
+time.labels = dhms(frame.labels)
+
+p_1 <-   ggplot(bl.time.eachcount, aes(factor(id,levels = 18:1),duration/30 )) + 
+  geom_boxplot(fill = c("darkred"),alpha=0.8) +
+  coord_flip() +
+  xlab("Patient id") +
+  ylab("Time (hh:mm:ss)") +
+  scale_y_continuous(breaks = frame.labels,labels = time.labels) +
+  ggtitle("Event Time Analysis") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggplotly(p_1)
+
+
+```
+
+### 6. Event Count Analysis
+
+```{r message=FALSE, echo=FALSE}
+
+hist.blecount.stat <- get(load("hist.blecount.stat.Rdata"))
+for(i in 1:length(hist.blecount.stat[,1])){
+  hist.blecount.stat[i,1] <- paste0( hist.blecount.stat[i,1],"(",paste0(hist.blecount.stat[i,7],")"))
+}
+
+
+
+colnames(hist.blecount.stat) <- c("average count (sd)","Min(count)"
+                            ,"1st Quantile(count)","2nd Quantile(count)","3rd Quantile(count)","Max(count)","sd")  
+rownames(hist.blecount.stat) <- c("No bleeding","Bleeding with intervention",
+                                     "Bleeding without intervention")
+hist.blecount.stat <- hist.blecount.stat[,-7]
+
+hist.blecount.stat_order <- rbind(hist.blecount.stat[3,],
+                                  hist.blecount.stat[2,])
+
+datatable(hist.blecount.stat_order, options = list(
+  pageLength = 3
+))%>%
+formatStyle('average count (sd)', `text-align` = 'center')%>%
+formatStyle('Min(count)', `text-align` = 'center')%>%
+formatStyle('1st Quantile(count)', `text-align` = 'center')%>%
+formatStyle('2nd Quantile(count)', `text-align` = 'center')%>%
+formatStyle('3rd Quantile(count)', `text-align` = 'center')%>%
+formatStyle('Max(count)', `text-align` = 'center')
+```
+
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+#===========boxplot 
+bleeding_history_count <- get(load("hist.blecount.dataframe.Rdata"))
+
+
+#MIN = min(bleeding_history_count$count)
+MAX = max(bleeding_history_count$count)
+count.label = seq(0,MAX,1)
+if(MAX>=50){
+  count.label = seq(0,MAX,2)
+}
+
+
+bleeding.labels = c("bleeding \n with \n intervention","bleeding \n without \n intervention")
+
+p <- ggplot(bleeding_history_count, aes(factor(bl.type),count )) + geom_boxplot(fill = c("darkred","darkgrey")) +
+coord_flip() +xlab("bleeding type")+ylab("count")+scale_y_continuous(breaks = count.label) +
+scale_x_discrete(labels = bleeding.labels) + ggtitle("Bleeding count box plot") + theme(plot.title = element_text(hjust = 0.5))
+ggplotly(p)
+
+
+```
+
+
+
+
+### 7. Phase x Bleeding Cross Tabulation
+#### 7.1 Phase x Bleeding with Intervention 
+##### 7.1.1 Time
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+one.dat <- get(load("his.phb.one.table.list.Rdata"))
+integ.data <-c()
+for(i in 1:length(one.dat)){
+  tmp <- cbind(i,one.dat[[i]]$frame.tab)
+  integ.data <- rbind(integ.data,tmp)
+}
+
+integ.data<-as.data.frame(integ.data)
+colnames(integ.data) <- c("phase","frame")
+
+MIN = min(integ.data$frame/30)
+MAX = max(integ.data$frame/30)
+
+frame.labels = seq(0,30*(ceiling(MAX/30)),30)
+time.labels = dhms(frame.labels)
+
+p <- ggplot(integ.data, aes(factor(phase,levels = 21:1), frame/30)) + 
+  geom_boxplot(fill = "darkred") + 
+  coord_flip() +xlab("phase") +
+  ylab("time") +
+  scale_y_continuous(breaks = frame.labels,labels = time.labels) + 
+  scale_x_discrete()
+ggplotly(p)
+
+
+
+#========================
+
+one <- group_by(integ.data, phase)%>% 
+summarise(mean=dhms(mean(frame)/30),sd= dhms(sd(frame)/30), min = dhms(min(frame)/30),`1st Quantile` = dhms(quantile(frame,0.25)/30) ,
+          `2nd Quantile` = dhms(median(frame)/30) ,`3rd Quantile` = dhms(quantile(frame,0.75)/30),max = dhms(max(frame)/30))
+
+
+#js <- "function(data, type, full){ return '<span class=sparkSamples>' + data + '</span>' }"
+#cd <- list(list(targets = 3, render = JS(js)))
+
+#MIN = min(integ.data$frame/30)
+#MAX = max(integ.data$frame/30)
+
+
+#box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'red', boxLineColor: 'black',chartRangeMin: '", MIN,"',chartRangeMax: '",MAX,"'")
+
+#cb <- JS(paste0("function (oSettings, json) {
+  #$('.sparkSamples:not(:has(canvas))').sparkline('html', { ", 
+                #box_string, " });
+#}"), collapse = "")
+#========
+one <- datatable(one,rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+formatStyle('mean', `text-align` = 'center')%>%
+formatStyle('sd', `text-align` = 'center')%>%
+formatStyle('min', `text-align` = 'center')%>%
+formatStyle('1st Quantile', `text-align` = 'center')%>%
+formatStyle('2nd Quantile', `text-align` = 'center')%>%
+formatStyle('3rd Quantile', `text-align` = 'center')%>%
+formatStyle('max', `text-align` = 'center')
+#one$dependencies <- append(one$dependencies,htmlwidgets:::getDependency("sparkline"))
+
+one
+
+
+
+```
+
+##### 7.1.1 Counts
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+library(dplyr)
+library(tidyr)
+library(DT)
+library(sparkline)
+library(plotly)
+
+count.table <- get(load("his.count.table.Rdata"))
+one <- count.table[[1]]
+#######==================
+MIN = min(one$counts)
+MAX = max(one$counts)
+
+
+count.label = seq(0,MAX,1)
+
+
+p <- ggplot(one, aes(factor(phase,levels = 21:1),counts )) + geom_boxplot(fill = "darkred") + coord_flip() +xlab("phase")+ylab("counts")+scale_y_continuous(breaks = count.label) 
+#-----------------------------
+ggplotly(p)
+
+
+#======================
+
+
+
+one <- group_by(one,phase)%>%
+summarise(mean= round(mean(counts),digits = 2),sd= round(sd(counts),digits = 2) , min = min(counts),`1st Quantile` = quantile(counts,0.25),
+          `2nd Quantile` = median(counts),`3rd Quantile` = quantile(counts,0.75),max = max(counts))
+#####======
+
+#js <- "function(data, type, full){ return '<span class=sparkSamples>' + data + '</span>' }"
+#cd <- list(list(targets = 3, render = JS(js)))
+
+
+
+
+#box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'red', boxLineColor: 'black',chartRangeMin: '", MIN,"',chartRangeMax: '",MAX,"'")
+
+#cb <- JS(paste0("function (oSettings, json) {
+  #$('.sparkSamples:not(:has(canvas))').sparkline('html', { ", 
+                #box_string, " });
+#}"), collapse = "")
+
+#========
+datatable(one,rownames = FALSE, options = list(
+  pageLength = 21
+))
+
+#one$dependencies <- append(one$dependencies,htmlwidgets:::getDependency("sparkline"))
+
+
+
+```
+
+
+
+
+
+
+
+#### 7.2 Phase x Bleeding without Intervention 
+
+##### 7.2.1 Time
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+library(dplyr)
+library(tidyr)
+library(DT)
+library(sparkline)
+library(ggplot2)
+library(ggthemes) 
+
+dhms <- function(t){
+  paste(paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+              ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+              ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+              ,sep = ":"
+  )
+  )
+}
+
+two.dat <- get(load("his.phb.two.table.list.Rdata"))
+integ.data <-c()
+for(i in 1:length(two.dat)){
+  tmp <- cbind(i,two.dat[[i]]$frame.tab)
+  integ.data <- rbind(integ.data,tmp)
+}
+integ.data<-as.data.frame(integ.data)
+colnames(integ.data) <- c("phase","frame")
+two <- group_by(integ.data, phase)%>% 
+summarise(mean=dhms(mean(frame)/30),sd= dhms(sd(frame)/30), min = dhms(min(frame)/30),`1st Quantile` = dhms(quantile(frame,0.25)/30),
+          `2nd Quantile` = dhms(median(frame)/30) ,`3rd Quantile` = dhms(quantile(frame,0.75)/30),max = dhms(max(frame)/30))
+
+#######====box plot with ggplot2
+MIN = min(integ.data$frame/30)
+MAX = max(integ.data$frame/30)
+
+
+frame.labels = seq(0,30*(ceiling(MAX/30)),30)
+time.labels = dhms(frame.labels)
+
+
+p <- ggplot(integ.data, aes(factor(phase,levels = 21:1), frame/30)) + geom_boxplot(fill = "slategrey",color="darkslategrey")+ coord_flip() +xlab("phase")+ylab("time")+scale_y_continuous(breaks = frame.labels,labels = time.labels)+theme_grey()
+#-----------------------------
+ggplotly(p)
+
+
+
+#one <- get(load("his.phb.one.table.Rdata"))
+#rownames(one) <-NULL
+#colnames(one) <- c("phase","average_time","median_time","average_proportion","median_propotion","average_count","median_count")
+#one$average_time <- dhms(one$average_time/30)
+#one$median_time <-dhms(one$median_time/30)
+
+#js <- "function(data, type, full){ return '<span class=sparkSamples>' + data + '</span>' }"
+#cd <- list(list(targets = 3, render = JS(js)))
+
+#MIN = min(integ.data$frame/30)
+#MAX = max(integ.data$frame/30)
+
+
+#box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'blue', boxLineColor: 'black',chartRangeMin: '", MIN,"',chartRangeMax: '",MAX,"'")
+
+#cb <- JS(paste0("function (oSettings, json) {
+  #$('.sparkSamples:not(:has(canvas))').sparkline('html', { ", 
+                #box_string, " });
+#}"), collapse = "")
+#========
+two <- datatable(two,rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+formatStyle('mean', `text-align` = 'center')%>%
+formatStyle('sd', `text-align` = 'center')%>%
+formatStyle('min', `text-align` = 'center')%>%
+formatStyle('1st Quantile', `text-align` = 'center')%>%
+formatStyle('2nd Quantile', `text-align` = 'center')%>%
+formatStyle('3rd Quantile', `text-align` = 'center')%>%
+formatStyle('max', `text-align` = 'center')
+  
+#two$dependencies <- append(two$dependencies,htmlwidgets:::getDependency("sparkline"))
+
+two
+
+
+```
+
+##### 7.2.2 Counts
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+library(dplyr)
+library(tidyr)
+library(DT)
+library(sparkline)
+library(ggplot2)
+library(ggthemes) 
+
+count.table <- get(load("his.count.table.Rdata"))
+two <- count.table[[2]]
+#####======ggplot2================================================================================================
+MIN = min(two$counts)
+MAX = max(two$counts)
+
+count.label = seq(0,MAX,1)
+
+
+p <- ggplot(two, aes(factor(phase,levels = 21:1),counts )) + geom_boxplot(fill = "slategrey",color="darkslategrey") + coord_flip() +xlab("phase")+ylab("counts")+scale_y_continuous(breaks = count.label) 
+#####====================================================================================
+ggplotly(p)
+
+
+
+
+
+#MIN = min(two$counts)
+#MAX = max(two$counts)
+
+two <- group_by(two,phase)%>%
+summarise(mean= round(mean(counts),digits = 2),sd= round(sd(counts),digits = 2), min = min(counts),`1st Quantile` = quantile(counts,0.25),
+          `2nd Quantile` = median(counts),`3rd Quantile` = quantile(counts,0.75),max = max(counts))
+
+
+#js <- "function(data, type, full){ return '<span class=sparkSamples>' + data + '</span>' }"
+#cd <- list(list(targets = 3, render = JS(js)))
+
+
+
+
+#box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'blue', boxLineColor: 'black',chartRangeMin: '", MIN,"',chartRangeMax: '",MAX,"'")
+
+#cb <- JS(paste0("function (oSettings, json) {
+  #$('.sparkSamples:not(:has(canvas))').sparkline('html', { ", 
+                #box_string, " });
+#}"), collapse = "")
+#========
+two <- datatable(two,rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+formatStyle('mean', `text-align` = 'center')%>%
+formatStyle('sd', `text-align` = 'center')%>%
+formatStyle('min', `text-align` = 'center')%>%
+formatStyle('1st Quantile', `text-align` = 'center')%>%
+formatStyle('2nd Quantile', `text-align` = 'center')%>%
+formatStyle('3rd Quantile', `text-align` = 'center')%>%
+formatStyle('max', `text-align` = 'center')
+
+
+#two$dependencies <- append(two$dependencies,htmlwidgets:::getDependency("sparkline"))
+
+two
+
+```
+
+
+#### 7.3 Phase x Total Bleeding 
+
+##### 7.3.1 Time
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+library(dplyr)
+library(tidyr)
+library(DT)
+library(sparkline)
+
+dhms <- function(t){
+  paste(paste(formatC(t %/% (60*60) %% 24, width = 2, format = "d", flag = "0")
+              ,formatC(t %/% 60 %% 60, width = 2, format = "d", flag = "0")
+              ,formatC(t %% 60, width = 2, format = "d", flag = "0")
+              ,sep = ":"
+  )
+  )
+}
+
+tot.dat <- get(load("his.phb.tot.table.list.Rdata"))
+integ.data <-c()
+for(i in 1:length(tot.dat)){
+  tmp <- cbind(i,tot.dat[[i]]$frame.tab)
+  integ.data <- rbind(integ.data,tmp)
+}
+integ.data<-as.data.frame(integ.data)
+colnames(integ.data) <- c("phase","frame")
+
+#========================================================
+MIN = min(integ.data$frame/30)
+MAX = max(integ.data$frame/30)
+
+
+frame.labels = seq(0,30*(ceiling(MAX/30)),30)
+time.labels = dhms(frame.labels)
+
+
+
+p <- ggplot(integ.data, aes(factor(phase,levels = 21:1), frame/30)) + geom_boxplot(fill = "purple",color="navy")+ coord_flip() +xlab("phase")+ylab("time")+scale_y_continuous(breaks = frame.labels,labels = time.labels)
+#========================================================
+ggplotly(p)
+
+
+
+
+
+tot <- group_by(integ.data, phase)%>% 
+summarise(mean=dhms(mean(frame)/30),sd= dhms(sd(frame)/30), min = dhms(min(frame)/30),`1st Quantile` = dhms(quantile(frame,0.25)/30) ,
+          `2nd Quantile` = dhms(median(frame)/30) ,`3rd Quantile` = dhms(quantile(frame,0.75)/30),max = dhms(max(frame)/30))
+
+
+
+
+#one <- get(load("his.phb.one.table.Rdata"))
+#rownames(one) <-NULL
+#colnames(one) <- c("phase","average_time","median_time","average_proportion","median_propotion","average_count","median_count")
+#one$average_time <- dhms(one$average_time/30)
+#one$median_time <-dhms(one$median_time/30)
+
+#js <- "function(data, type, full){ return '<span class=sparkSamples>' + data + '</span>' }"
+#cd <- list(list(targets = 3, render = JS(js)))
+
+#MIN = min(integ.data$frame/30)
+#MAX = max(integ.data$frame/30)
+
+
+#box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'purple', boxLineColor: 'black',chartRangeMin: '", MIN,"',chartRangeMax: '",MAX,"'")
+
+#cb <- JS(paste0("function (oSettings, json) {
+  #$('.sparkSamples:not(:has(canvas))').sparkline('html', { ", 
+                #box_string, " });
+#}"), collapse = "")
+#========
+tot <- datatable(tot,rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+formatStyle('mean', `text-align` = 'center')%>%
+formatStyle('sd', `text-align` = 'center')%>%
+formatStyle('min', `text-align` = 'center')%>%
+formatStyle('1st Quantile', `text-align` = 'center')%>%
+formatStyle('2nd Quantile', `text-align` = 'center')%>%
+formatStyle('3rd Quantile', `text-align` = 'center')%>%
+formatStyle('max', `text-align` = 'center')
+
+#tot$dependencies <- append(tot$dependencies,htmlwidgets:::getDependency("sparkline"))
+
+tot
+
+
+```
+
+
+##### 7.3.2 Counts
+
+```{r message=FALSE, echo=FALSE,fig.height=7, fig.width=9}
+
+library(dplyr)
+library(tidyr)
+library(DT)
+library(sparkline)
+
+
+count.table <- get(load("his.count.table.Rdata"))
+tot <- count.table[[3]]
+#==============
+MIN = min(tot$counts)
+MAX = max(tot$counts)
+
+count.label = seq(0,MAX,1)
+
+
+p <- ggplot(tot, aes(factor(phase,levels = 21:1),counts )) + geom_boxplot(fill = "purple",color="navy") + coord_flip() +xlab("phase")+ylab("counts")+scale_y_continuous(breaks = count.label) 
+#========================
+ggplotly(p)
+
+
+tot <- group_by(tot,phase)%>%
+summarise(mean= round(mean(counts),digits = 2),sd= round(sd(counts),digits = 2) , min = min(counts),`1st Quantile` = quantile(counts,0.25),
+          `2nd Quantile` = median(counts),`3rd Quantile` = quantile(counts,0.75),max = max(counts))
+#####======
+
+#js <- "function(data, type, full){ return '<span class=sparkSamples>' + data + '</span>' }"
+#cd <- list(list(targets = 3, render = JS(js)))
+
+
+
+
+#box_string <- paste0("type: 'box', lineColor: 'black', whiskerColor: 'black', outlierFillColor: 'black', outlierLineColor: 'black', medianColor: 'black', boxFillColor: 'purple', boxLineColor: 'black',chartRangeMin: '", MIN,"',chartRangeMax: '",MAX,"'")
+
+#========
+tot <- datatable(tot,rownames = FALSE, options = list(
+  pageLength = 21
+))%>%
+formatStyle('mean', `text-align` = 'center')%>%
+formatStyle('sd', `text-align` = 'center')%>%
+formatStyle('min', `text-align` = 'center')%>%
+formatStyle('1st Quantile', `text-align` = 'center')%>%
+formatStyle('2nd Quantile', `text-align` = 'center')%>%
+formatStyle('3rd Quantile', `text-align` = 'center')%>%
+formatStyle('max', `text-align` = 'center')
+tot
+#tot$dependencies <- append(tot$dependencies,htmlwidgets:::getDependency("sparkline"))
+
+#tot
+
+
+
+
+
+```
